@@ -13,8 +13,21 @@ class JsonReader implements JsonReaderInterface
     const OBJECT_END = 4;
     const ARRAY_START = 5;
     const ARRAY_END = 6;
+
+    /**
+     * Current node type
+     *
+     * @var integer
+     */
     public $nodeType;
+
+    /**
+     * Current node value
+     *
+     * @var mixed
+     */
     public $nodeValue;
+
     /**
      * @var PeekableStreamReaderInterface
      */
@@ -37,7 +50,7 @@ class JsonReader implements JsonReaderInterface
      */
     public function read()
     {
-        while (true) {
+        while (!$this->stream->isEmpty()) {
             $char = $this->stream->readChar();
 
             switch ($char) {
@@ -63,6 +76,7 @@ class JsonReader implements JsonReaderInterface
 
                 case ' ':
                 case ':':
+                case ',':
                     break;
 
                 default:
@@ -172,7 +186,7 @@ class JsonReader implements JsonReaderInterface
 
     private function determineStringType()
     {
-        while (true) {
+        while (!$this->stream->isPeekEmpty()) {
             $char = $this->stream->peek(1);
 
             switch ($char) {
@@ -199,7 +213,7 @@ class JsonReader implements JsonReaderInterface
             }
         }
 
-        throw new RuntimeException();
+        return self::STRING;
     }
 
 }

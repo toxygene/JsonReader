@@ -30,46 +30,63 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
         fclose($this->stream);
     }
 
-    public function testTest()
+    public function testAStringCanBeRead()
+    {
+        $this->setStreamContents('"value"');
+
+        $this->assertReadNode(JsonReader::STRING, 'value');
+    }
+
+    public function testAnObjectCanBeRead()
     {
         $this->setStreamContents('{"key": "value"}');
 
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertReadNode(JsonReader::MEMBER_NAME, 'key');
+        $this->assertReadNode(JsonReader::STRING, 'value');
+        $this->assertReadNode(JsonReader::OBJECT_END);
+    }
+
+    public function testAnArrayCanBeRead()
+    {
+        $this->setStreamContents('["value"]');
+
+        $this->assertReadNode(JsonReader::ARRAY_START);
+        $this->assertReadNode(JsonReader::STRING, 'value');
+        $this->assertReadNode(JsonReader::ARRAY_END);
+    }
+
+    public function testNestedObjectsAndArraysCanBeRead()
+    {
+        $this->setStreamContents('{"one":[{"two": "three"},{"four": "five"}]}');
+
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertReadNode(JsonReader::MEMBER_NAME, 'one');
+        $this->assertReadNode(JsonReader::ARRAY_START);
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertReadNode(JsonReader::MEMBER_NAME, 'two');
+        $this->assertReadNode(JsonReader::STRING, 'three');
+        $this->assertReadNode(JsonReader::OBJECT_END);
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertReadNode(JsonReader::MEMBER_NAME, 'four');
+        $this->assertReadNode(JsonReader::STRING, 'five');
+        $this->assertReadNode(JsonReader::OBJECT_END);
+        $this->assertReadNode(JsonReader::ARRAY_END);
+        $this->assertReadNode(JsonReader::OBJECT_END);
+    }
+
+    private function assertReadNode($type, $value = null)
+    {
         $this->assertTrue($this->reader->read());
 
         $this->assertEquals(
-            JsonReader::OBJECT_START,
-            $this->reader->nodeType
-        );
-
-        $this->assertTrue($this->reader->read());
-
-        $this->assertEquals(
-            JsonReader::MEMBER_NAME,
+            $type,
             $this->reader->nodeType
         );
 
         $this->assertEquals(
-            'key',
+            $value,
             $this->reader->nodeValue
-        );
-
-        $this->assertTrue($this->reader->read());
-
-        $this->assertEquals(
-            JsonReader::STRING,
-            $this->reader->nodeType
-        );
-
-        $this->assertEquals(
-            'value',
-            $this->reader->nodeValue
-        );
-
-        $this->assertTrue($this->reader->read());
-
-        $this->assertEquals(
-            JsonReader::OBJECT_END,
-            $this->reader->nodeType
         );
     }
 
