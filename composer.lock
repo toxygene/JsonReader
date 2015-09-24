@@ -62,16 +62,16 @@
         },
         {
             "name": "toxygene/stream-reader",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/toxygene/StreamReader.git",
-                "reference": "bfb864008bc7add1f1f7d95c3aa5404a6ab1be00"
+                "reference": "d32d1220e5c016764e95d4facc67ab37a2d551e1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/toxygene/StreamReader/zipball/bfb864008bc7add1f1f7d95c3aa5404a6ab1be00",
-                "reference": "bfb864008bc7add1f1f7d95c3aa5404a6ab1be00",
+                "url": "https://api.github.com/repos/toxygene/StreamReader/zipball/d32d1220e5c016764e95d4facc67ab37a2d551e1",
+                "reference": "d32d1220e5c016764e95d4facc67ab37a2d551e1",
                 "shasum": ""
             },
             "require-dev": {
@@ -90,7 +90,7 @@
                     "email": "justin.hendrickson@gmail.com"
                 }
             ],
-            "time": "2015-09-24 01:04:35"
+            "time": "2015-09-24 19:03:55"
         }
     ],
     "packages-dev": [
