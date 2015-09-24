@@ -1,0 +1,21 @@
+{
+    "name": "toxygene/streaming-json-push-parser",
+    "authors": [
+        {
+            "name": "Justin Hendrickson",
+            "email": "justin.hendrickson@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Toxygene\\JsonReader\\": "src"
+        }
+    },
+    "require": {
+        "toxygene/stream-reader": "^1.0",
+        "doctrine/lexer": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^4.8"
+    }
+}
