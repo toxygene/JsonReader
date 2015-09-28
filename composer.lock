@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "23311a55c25c6284a1362bfd6e0d0006",
+    "hash": "5b4ce39d8ec524ca9c9a27be62c567ca",
     "packages": [
         {
             "name": "doctrine/lexer",
@@ -62,16 +62,16 @@
         },
         {
             "name": "toxygene/stream-reader",
-            "version": "1.0.3",
+            "version": "2.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/toxygene/StreamReader.git",
-                "reference": "d32d1220e5c016764e95d4facc67ab37a2d551e1"
+                "reference": "748fec6ce3f63da2ce757aef9172490a92b1cdc6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/toxygene/StreamReader/zipball/d32d1220e5c016764e95d4facc67ab37a2d551e1",
-                "reference": "d32d1220e5c016764e95d4facc67ab37a2d551e1",
+                "url": "https://api.github.com/repos/toxygene/StreamReader/zipball/748fec6ce3f63da2ce757aef9172490a92b1cdc6",
+                "reference": "748fec6ce3f63da2ce757aef9172490a92b1cdc6",
                 "shasum": ""
             },
             "require-dev": {
@@ -90,7 +90,7 @@
                     "email": "justin.hendrickson@gmail.com"
                 }
             ],
-            "time": "2015-09-24 19:03:55"
+            "time": "2015-09-28 16:35:48"
         }
     ],
     "packages-dev": [
@@ -998,16 +998,16 @@
         },
         {
             "name": "symfony/yaml",
-            "version": "v2.7.4",
+            "version": "v2.7.5",
             "source": {
                 "type": "git",
-                "url": "https://github.com/symfony/Yaml.git",
-                "reference": "2dc7b06c065df96cc686c66da2705e5e18aef661"
+                "url": "https://github.com/symfony/yaml.git",
+                "reference": "31cb2ad0155c95b88ee55fe12bc7ff92232c1770"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/Yaml/zipball/2dc7b06c065df96cc686c66da2705e5e18aef661",
-                "reference": "2dc7b06c065df96cc686c66da2705e5e18aef661",
+                "url": "https://api.github.com/repos/symfony/yaml/zipball/31cb2ad0155c95b88ee55fe12bc7ff92232c1770",
+                "reference": "31cb2ad0155c95b88ee55fe12bc7ff92232c1770",
                 "shasum": ""
             },
             "require": {
@@ -1043,7 +1043,7 @@
             ],
             "description": "Symfony Yaml Component",
             "homepage": "https://symfony.com",
-            "time": "2015-08-24 07:13:45"
+            "time": "2015-09-14 14:14:09"
         }
     ],
     "aliases": [],
