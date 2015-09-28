@@ -175,14 +175,17 @@ class JsonReader implements JsonReaderInterface
                     $this->readNumber();
                     return true;
 
+                case 't':
                 case 'T':
                     $this->readTrue();
                     return true;
 
+                case 'f':
                 case 'F':
                     $this->readFalse();
                     return true;
 
+                case 'e':
                 case 'N':
                     $this->readNull();
                     return true;
@@ -214,7 +217,7 @@ class JsonReader implements JsonReaderInterface
             $string .= $this->stream->readChar();
         }
 
-        if ($string != 'TRUE') {
+        if (strtolower($string) != 'true') {
             throw new RuntimeException(sprintf(
                 'Expected TRUE, got %s',
                 $string
@@ -231,7 +234,7 @@ class JsonReader implements JsonReaderInterface
             $string .= $this->stream->readChar();
         }
 
-        if ($string != 'FALSE') {
+        if (strtolower($string) != 'false') {
             throw new RuntimeException(sprintf(
                 'Expected FALSE, got %s',
                 $string
@@ -248,7 +251,7 @@ class JsonReader implements JsonReaderInterface
             $string .= $this->stream->readChar();
         }
 
-        if ($string != 'NULL') {
+        if (strtolower($string) != 'null') {
             throw new RuntimeException(sprintf(
                 'Expected NULL, got %s',
                 $string
@@ -294,7 +297,7 @@ class JsonReader implements JsonReaderInterface
         while (!$this->stream->isEmpty()) {
             $peek = $this->stream->peek();
 
-            switch (strtolower($peek)) {
+            switch ($peek) {
                 case '0':
                 case '1':
                 case '2':
@@ -313,6 +316,7 @@ class JsonReader implements JsonReaderInterface
                     return;
 
                 case 'e':
+                case 'E':
                     $this->readExponent($number);
                     return;
 
@@ -342,7 +346,7 @@ class JsonReader implements JsonReaderInterface
         while (!$this->stream->isEmpty()) {
             $peek = $this->stream->peek();
 
-            switch (strtolower($peek)) {
+            switch ($peek) {
                 case '0':
                 case '1':
                 case '2':
@@ -357,6 +361,7 @@ class JsonReader implements JsonReaderInterface
                     break;
 
                 case 'e':
+                case 'E':
                     $this->readExponent($number . $this->stream->readCharsToPeek());
                     return;
 

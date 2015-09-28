@@ -153,6 +153,16 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
         $this->assertReadNode(JsonReader::OBJECT_END);
     }
 
+    public function testReadBoolean()
+    {
+        $this->setStreamContents('{"test": true}');
+
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'test');
+        $this->assertReadNode(JsonReader::TRUE);
+        $this->assertReadNode(JsonReader::OBJECT_END);
+    }
+
     private function assertStruct($depth, $type)
     {
         $this->assertEquals($depth, $this->reader->currentDepth);
