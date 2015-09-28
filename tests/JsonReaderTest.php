@@ -2,14 +2,12 @@
 namespace Toxygene\JsonReader\Tests;
 
 use Toxygene\JsonReader\JsonReader;
-use Toxygene\StreamReader\PeekableStreamReaderDecorator;
-use Toxygene\StreamReader\StreamReader;
 
 class JsonReaderTest extends \PHPUnit_Framework_TestCase
 {
 
     /**
-     * @var
+     * @var resource
      */
     private $stream;
 
@@ -21,7 +19,9 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
     public function setUp()
     {
         $this->stream = fopen('php://memory', 'w+');
-        $this->reader = new JsonReader(new PeekableStreamReaderDecorator(new StreamReader($this->stream)));
+
+        $this->reader = new JsonReader();
+        $this->reader->openStream($this->stream);
     }
 
     public function tearDown()
@@ -37,14 +37,39 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
         $this->assertReadNode(JsonReader::STRING, 'value');
     }
 
+    private function setStreamContents($contents)
+    {
+        fseek($this->stream, 0);
+        fwrite($this->stream, $contents);
+        fseek($this->stream, 0);
+
+        return $this;
+    }
+
+    private function assertReadNode($type, $value = null)
+    {
+        $this->assertTrue($this->reader->read());
+
+        $this->assertEquals(
+            $type,
+            $this->reader->tokenType
+        );
+
+        $this->assertEquals(
+            $value,
+            $this->reader->value
+        );
+    }
+
     public function testAnObjectCanBeRead()
     {
         $this->setStreamContents('{"key": "value"}');
 
         $this->assertReadNode(JsonReader::OBJECT_START);
-        $this->assertReadNode(JsonReader::MEMBER_NAME, 'key');
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'key');
         $this->assertReadNode(JsonReader::STRING, 'value');
         $this->assertReadNode(JsonReader::OBJECT_END);
+        $this->assertFalse($this->reader->read());
     }
 
     public function testAnArrayCanBeRead()
@@ -54,6 +79,7 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
         $this->assertReadNode(JsonReader::ARRAY_START);
         $this->assertReadNode(JsonReader::STRING, 'value');
         $this->assertReadNode(JsonReader::ARRAY_END);
+        $this->assertFalse($this->reader->read());
     }
 
     public function testNestedObjectsAndArraysCanBeRead()
@@ -61,42 +87,66 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
         $this->setStreamContents('{"one":[{"two": "three"},{"four": "five"}]}');
 
         $this->assertReadNode(JsonReader::OBJECT_START);
-        $this->assertReadNode(JsonReader::MEMBER_NAME, 'one');
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'one');
         $this->assertReadNode(JsonReader::ARRAY_START);
         $this->assertReadNode(JsonReader::OBJECT_START);
-        $this->assertReadNode(JsonReader::MEMBER_NAME, 'two');
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'two');
         $this->assertReadNode(JsonReader::STRING, 'three');
         $this->assertReadNode(JsonReader::OBJECT_END);
         $this->assertReadNode(JsonReader::OBJECT_START);
-        $this->assertReadNode(JsonReader::MEMBER_NAME, 'four');
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'four');
         $this->assertReadNode(JsonReader::STRING, 'five');
         $this->assertReadNode(JsonReader::OBJECT_END);
         $this->assertReadNode(JsonReader::ARRAY_END);
         $this->assertReadNode(JsonReader::OBJECT_END);
+        $this->assertFalse($this->reader->read());
     }
 
-    private function assertReadNode($type, $value = null)
+    public function testInvalidNestingSyntaxThrowsAnException()
     {
-        $this->assertTrue($this->reader->read());
+        $this->setExpectedException('RuntimeException');
 
-        $this->assertEquals(
-            $type,
-            $this->reader->nodeType
-        );
+        $this->setStreamContents('{]');
 
-        $this->assertEquals(
-            $value,
-            $this->reader->nodeValue
-        );
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->reader->read();
     }
 
-    private function setStreamContents($contents)
+    public function testStructsAreTracked()
     {
-        fseek($this->stream, 0);
-        fwrite($this->stream, $contents);
-        fseek($this->stream, 0);
+        $this->setStreamContents('{"one":[{},[]]}');
 
-        return $this;
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertStruct(1, JsonReader::OBJECT);
+
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'one');
+
+        $this->assertReadNode(JsonReader::ARRAY_START);
+        $this->assertStruct(2, JsonReader::ARR);
+
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertStruct(3, JsonReader::OBJECT);
+
+        $this->assertReadNode(JsonReader::OBJECT_END);
+        $this->assertStruct(2, JsonReader::ARR);
+
+        $this->assertReadNode(JsonReader::ARRAY_START);
+        $this->assertStruct(3, JsonReader::ARR);
+
+        $this->assertReadNode(JsonReader::ARRAY_END);
+        $this->assertStruct(2, JsonReader::ARR);
+
+        $this->assertReadNode(JsonReader::ARRAY_END);
+        $this->assertStruct(1, JsonReader::OBJECT);
+
+        $this->assertReadNode(JsonReader::OBJECT_END);
+        $this->assertStruct(0, NULL);
+    }
+
+    private function assertStruct($depth, $type)
+    {
+        $this->assertEquals($depth, $this->reader->currentDepth);
+        $this->assertEquals($type, $this->reader->currentStruct);
     }
 
 }

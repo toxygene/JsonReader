@@ -2,31 +2,61 @@
 namespace Toxygene\JsonReader;
 
 use RuntimeException;
+use SplStack;
+use Toxygene\StreamReader\PeekableStreamReaderDecorator;
 use Toxygene\StreamReader\PeekableStreamReaderInterface;
+use Toxygene\StreamReader\StreamReader;
+use Toxygene\StreamReader\StreamReaderInterface;
 
 class JsonReader implements JsonReaderInterface
 {
 
-    const STRING = 1;
-    const MEMBER_NAME = 2;
-    const OBJECT_START = 3;
-    const OBJECT_END = 4;
-    const ARRAY_START = 5;
-    const ARRAY_END = 6;
+    const NULL = 1;
+    const FALSE = 2;
+    const TRUE = 4;
+    const INT = 8;
+    const FLOAT = 16;
+    const STRING = 32;
+    const ARRAY_START = 64;
+    const ARRAY_END = 128;
+    const OBJECT_START = 256;
+    const OBJECT_KEY = 512;
+    const OBJECT_END = 1024;
+
+    const ARR = 'array';
+    const OBJECT = 'object';
+
+    const BOOLEAN = self::FALSE & self::TRUE;
+    const NUMBER = self::INT & self::FLOAT;
+    const VALUE = self::NULL & self::FALSE & self::TRUE & self::INT & self::FLOAT & self::STRING;
 
     /**
-     * Current node type
+     * Current depth
      *
      * @var integer
      */
-    public $nodeType;
+    public $currentDepth = 0;
 
     /**
-     * Current node value
+     * Current token type
+     *
+     * @var integer
+     */
+    public $tokenType;
+
+    /**
+     * Current token value
      *
      * @var mixed
      */
-    public $nodeValue;
+    public $value;
+
+    /**
+     * Current struct
+     *
+     * @var string
+     */
+    public $currentStruct;
 
     /**
      * @var PeekableStreamReaderInterface
@@ -34,19 +64,69 @@ class JsonReader implements JsonReaderInterface
     private $stream;
 
     /**
-     * Constructor
-     *
-     * @param PeekableStreamReaderInterface $stream
+     * @var SplStack
      */
-    public function __construct(PeekableStreamReaderInterface $stream)
+    private $structStack;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
     {
-        $this->stream = $stream;
+        $this->structStack = new SplStack();
     }
 
     /**
-     * Read from the stream until a token is read
-     *
-     * @return boolean
+     * {@inheritdoc}
+     */
+    public function close()
+    {
+        return $this->stream
+            ->close();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function open($uri)
+    {
+        return $this->openStream(
+            fopen($uri, 'r')
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function openStream($stream)
+    {
+        return $this->openStreamReader(
+            new StreamReader($stream)
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function openStreamReader(StreamReaderInterface $streamReader)
+    {
+        return $this->openPeekableStreamReader(
+            new PeekableStreamReaderDecorator($streamReader)
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function openPeekableStreamReader(PeekableStreamReaderInterface $peekableStreamReader)
+    {
+        $this->stream = $peekableStreamReader;
+
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function read()
     {
@@ -59,21 +139,24 @@ class JsonReader implements JsonReaderInterface
                     return true;
 
                 case '{':
-                    $this->setNodeData(self::OBJECT_START);
+                    $this->pushStructToken(self::OBJECT_START);
                     return true;
 
                 case '}':
-                    $this->setNodeData(self::OBJECT_END);
+                    $this->popStructToken(self::OBJECT_END);
                     return true;
 
                 case '[':
-                    $this->setNodeData(self::ARRAY_START);
+                    $this->pushStructToken(self::ARRAY_START);
                     return true;
 
                 case ']':
-                    $this->setNodeData(self::ARRAY_END);
+                    $this->popStructToken(self::ARRAY_END);
                     return true;
 
+                case "\n":
+                case "\t":
+                case "\r":
                 case ' ':
                 case ':':
                 case ',':
@@ -87,9 +170,12 @@ class JsonReader implements JsonReaderInterface
             }
         }
 
-        throw new RuntimeException();
+        return false;
     }
 
+    /**
+     *
+     */
     private function readString()
     {
         $string = '';
@@ -103,7 +189,7 @@ class JsonReader implements JsonReaderInterface
                     break;
 
                 case '"':
-                    $this->setNodeData($this->determineStringType(), $string);
+                    $this->setTokenData($this->determineStringType(), $string);
                     break 2;
 
                 default:
@@ -113,6 +199,9 @@ class JsonReader implements JsonReaderInterface
         }
     }
 
+    /**
+     *
+     */
     private function parseEscapeSequence()
     {
         $char = $this->stream->readChar();
@@ -139,6 +228,9 @@ class JsonReader implements JsonReaderInterface
         }
     }
 
+    /**
+     *
+     */
     private function parseUnicodeEscapeSequence()
     {
         for ($i = 0; $i < 4; ++$i) {
@@ -173,14 +265,17 @@ class JsonReader implements JsonReaderInterface
     }
 
     /**
+     * Set the current token data
+     *
      * @param string $type
      * @param mixed $value
      * @return $this
      */
-    private function setNodeData($type, $value = null)
+    private function setTokenData($type, $value = null)
     {
-        $this->nodeType = $type;
-        $this->nodeValue = $value;
+        $this->tokenType = $type;
+        $this->value = $value;
+
         return $this;
     }
 
@@ -196,7 +291,7 @@ class JsonReader implements JsonReaderInterface
                     return self::STRING;
 
                 case ':':
-                    return self::MEMBER_NAME;
+                    return self::OBJECT_KEY;
 
                 case "\t":
                 case "\r":
@@ -214,6 +309,69 @@ class JsonReader implements JsonReaderInterface
         }
 
         return self::STRING;
+    }
+
+    /**
+     * @param string $token
+     */
+    private function pushStructToken($token)
+    {
+        switch ($token) {
+            case self::ARRAY_START:
+                $this->structStack
+                    ->push(self::ARR);
+                break;
+
+            case self::OBJECT_START:
+                $this->structStack
+                    ->push(self::OBJECT);
+                break;
+        }
+
+        $this->currentStruct = $this->structStack
+            ->top();
+
+        $this->currentDepth = $this->structStack
+            ->count();
+
+        $this->setTokenData($token);
+    }
+
+    /**
+     * @param string $token
+     */
+    private function popStructToken($token)
+    {
+        $topToken = $this->structStack
+            ->pop();
+
+        switch ($token) {
+            case self::ARRAY_END:
+                if ($topToken == self::OBJECT) {
+                    throw new RuntimeException('Expected ], got }');
+                }
+                break;
+
+            case self::OBJECT_END:
+                if ($topToken == self::ARR) {
+                    throw new RuntimeException('Expected }, got ]');
+                }
+                break;
+        }
+
+        $this->setTokenData($token);
+
+        if ($this->structStack->isEmpty()) {
+            $this->currentStruct = null;
+            $this->currentDepth = 0;
+            return;
+        }
+
+        $this->currentStruct = $this->structStack
+            ->top();
+
+        $this->currentDepth = $this->structStack
+            ->count();
     }
 
 }
