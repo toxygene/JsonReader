@@ -130,28 +130,61 @@ class JsonReader implements JsonReaderInterface
      */
     public function read()
     {
-        while (!$this->stream->isEmpty()) {
-            $char = $this->stream->readChar();
+        $this->stream->resetPeek();
 
-            switch ($char) {
+        while (!$this->stream->isEmpty()) {
+            $peek = $this->stream->peek();
+
+            switch ($peek) {
                 case '"':
+                    $this->stream->readCharsToPeek();
                     $this->readString();
                     return true;
 
                 case '{':
+                    $this->stream->readCharsToPeek();
                     $this->pushStructToken(self::OBJECT_START);
                     return true;
 
                 case '}':
+                    $this->stream->readCharsToPeek();
                     $this->popStructToken(self::OBJECT_END);
                     return true;
 
                 case '[':
+                    $this->stream->readCharsToPeek();
                     $this->pushStructToken(self::ARRAY_START);
                     return true;
 
                 case ']':
+                    $this->stream->readCharsToPeek();
                     $this->popStructToken(self::ARRAY_END);
+                    return true;
+
+                case '-':
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    $this->readNumber();
+                    return true;
+
+                case 'T':
+                    $this->readTrue();
+                    return true;
+
+                case 'F':
+                    $this->readFalse();
+                    return true;
+
+                case 'N':
+                    $this->readNull();
                     return true;
 
                 case "\n":
@@ -160,17 +193,69 @@ class JsonReader implements JsonReaderInterface
                 case ' ':
                 case ':':
                 case ',':
+                    $this->stream->readCharsToPeek();
                     break;
 
                 default:
                     throw new RuntimeException(sprintf(
                         'Unexpected %s',
-                        $char
+                        $peek
                     ));
             }
         }
 
         return false;
+    }
+
+    private function readTrue()
+    {
+        $string = '';
+        for ($i = 0; $i < 4; ++$i) {
+            $string .= $this->stream->readChar();
+        }
+
+        if ($string != 'TRUE') {
+            throw new RuntimeException(sprintf(
+                'Expected TRUE, got %s',
+                $string
+            ));
+        }
+
+        $this->setTokenData(self::TRUE);
+    }
+
+    private function readFalse()
+    {
+        $string = '';
+        for ($i = 0; $i < 5; ++$i) {
+            $string .= $this->stream->readChar();
+        }
+
+        if ($string != 'FALSE') {
+            throw new RuntimeException(sprintf(
+                'Expected FALSE, got %s',
+                $string
+            ));
+        }
+
+        $this->setTokenData(self::FALSE);
+    }
+
+    private function readNull()
+    {
+        $string = '';
+        for ($i = 0; $i < 4; ++$i) {
+            $string .= $this->stream->readChar();
+        }
+
+        if ($string != 'NULL') {
+            throw new RuntimeException(sprintf(
+                'Expected NULL, got %s',
+                $string
+            ));
+        }
+
+        $this->setTokenData(self::NULL);
     }
 
     /**
@@ -197,6 +282,140 @@ class JsonReader implements JsonReaderInterface
                     break;
             }
         }
+    }
+
+    /**
+     *
+     */
+    private function readNumber()
+    {
+        $number = '';
+
+        while (!$this->stream->isEmpty()) {
+            $peek = $this->stream->peek();
+
+            switch (strtolower($peek)) {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    $number .= $this->stream->readCharsToPeek();
+                    break;
+
+                case '.':
+                    $this->readFraction($number . $this->stream->readCharsToPeek());
+                    return;
+
+                case 'e':
+                    $this->readExponent($number);
+                    return;
+
+                case ',':
+                case '}':
+                case ']':
+                    $this->setTokenData(self::INT, $number);
+                    return;
+                    break;
+
+                default:
+                    throw new RuntimeException(sprintf(
+                        'Unexpected %s',
+                        $peek
+                    ));
+            }
+        }
+
+        throw new RuntimeException('Unexpected end of file, expected number');
+    }
+
+    /**
+     *
+     */
+    private function readFraction($number)
+    {
+        while (!$this->stream->isEmpty()) {
+            $peek = $this->stream->peek();
+
+            switch (strtolower($peek)) {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    $number .= $this->stream->readCharsToPeek();
+                    break;
+
+                case 'e':
+                    $this->readExponent($number . $this->stream->readCharsToPeek());
+                    return;
+
+                case ',':
+                case ']':
+                case '}':
+                    $this->setTokenData(self::FLOAT, $number);
+                    return;
+
+                default:
+                    throw new RuntimeException(sprintf(
+                        'Unexpected %s',
+                        $peek
+                    ));
+            }
+        }
+
+        throw new RuntimeException('Unexpected end of file, expected fraction part');
+    }
+
+    /**
+     *
+     */
+    public function readExponent($number)
+    {
+        while (!$this->stream->isEmpty()) {
+            $peek = $this->stream->peek();
+
+            switch ($peek) {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                case '+':
+                case '-':
+                    $number .= $this->stream->readCharsToPeek();
+                    break;
+
+                case ',':
+                case ']':
+                case '}':
+                    $this->setTokenData(self::FLOAT, $number);
+                    return;
+
+                default:
+                    throw new RuntimeException(sprintf(
+                        'Expected exponent, got %s',
+                        $peek
+                    ));
+            }
+        }
+
+        throw new RuntimeException('Expected exponent, got end of file');
     }
 
     /**
