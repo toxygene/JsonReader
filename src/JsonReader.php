@@ -185,7 +185,7 @@ class JsonReader implements JsonReaderInterface
                     $this->readFalse();
                     return true;
 
-                case 'e':
+                case 'n':
                 case 'N':
                     $this->readNull();
                     return true;
