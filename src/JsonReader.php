@@ -154,6 +154,9 @@ class JsonReader implements JsonReaderInterface
                     $this->popStructToken(self::ARRAY_END);
                     return true;
 
+                case "\n":
+                case "\t":
+                case "\r":
                 case ' ':
                 case ':':
                 case ',':
@@ -167,7 +170,7 @@ class JsonReader implements JsonReaderInterface
             }
         }
 
-        throw new RuntimeException();
+        return false;
     }
 
     /**
@@ -340,7 +343,7 @@ class JsonReader implements JsonReaderInterface
     private function popStructToken($token)
     {
         $topToken = $this->structStack
-            ->top();
+            ->pop();
 
         switch ($token) {
             case self::ARRAY_END:
@@ -356,13 +359,19 @@ class JsonReader implements JsonReaderInterface
                 break;
         }
 
+        $this->setTokenData($token);
+
+        if ($this->structStack->isEmpty()) {
+            $this->currentStruct = null;
+            $this->currentDepth = 0;
+            return;
+        }
+
         $this->currentStruct = $this->structStack
-            ->pop();
+            ->top();
 
         $this->currentDepth = $this->structStack
             ->count();
-
-        $this->setTokenData($token);
     }
 
 }
