@@ -143,6 +143,16 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
         $this->assertStruct(0, NULL);
     }
 
+    public function testNumbersAreParsed()
+    {
+        $this->setStreamContents('{"test": -1.1e+1}');
+
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'test');
+        $this->assertReadNode(JsonReader::FLOAT, '-1.1e+1');
+        $this->assertReadNode(JsonReader::OBJECT_END);
+    }
+
     private function assertStruct($depth, $type)
     {
         $this->assertEquals($depth, $this->reader->currentDepth);
