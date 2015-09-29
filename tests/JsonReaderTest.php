@@ -117,39 +117,41 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
         $this->setStreamContents('{"one":[{},[]]}');
 
         $this->assertReadNode(JsonReader::OBJECT_START);
-        $this->assertStruct(1, JsonReader::OBJECT);
+        $this->assertStruct(0, null);
 
         $this->assertReadNode(JsonReader::OBJECT_KEY, 'one');
 
         $this->assertReadNode(JsonReader::ARRAY_START);
-        $this->assertStruct(2, JsonReader::ARR);
+        $this->assertStruct(1, JsonReader::OBJECT);
 
         $this->assertReadNode(JsonReader::OBJECT_START);
-        $this->assertStruct(3, JsonReader::OBJECT);
-
-        $this->assertReadNode(JsonReader::OBJECT_END);
         $this->assertStruct(2, JsonReader::ARR);
 
+        $this->assertReadNode(JsonReader::OBJECT_END);
+        $this->assertStruct(3, JsonReader::OBJECT);
+
         $this->assertReadNode(JsonReader::ARRAY_START);
+        $this->assertStruct(2, JsonReader::ARR);
+
+        $this->assertReadNode(JsonReader::ARRAY_END);
         $this->assertStruct(3, JsonReader::ARR);
 
         $this->assertReadNode(JsonReader::ARRAY_END);
         $this->assertStruct(2, JsonReader::ARR);
 
-        $this->assertReadNode(JsonReader::ARRAY_END);
-        $this->assertStruct(1, JsonReader::OBJECT);
-
         $this->assertReadNode(JsonReader::OBJECT_END);
-        $this->assertStruct(0, NULL);
+        $this->assertStruct(1, JsonReader::OBJECT);
     }
 
     public function testNumbersAreParsed()
     {
-        $this->setStreamContents('{"test": -1.1e+1}');
+        $this->setStreamContents('{"test": -1.1e+1, "another": 12}');
 
         $this->assertReadNode(JsonReader::OBJECT_START);
         $this->assertReadNode(JsonReader::OBJECT_KEY, 'test');
         $this->assertReadNode(JsonReader::FLOAT, '-1.1e+1');
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'another');
+        $this->assertReadNode(JsonReader::INT, 12);
         $this->assertReadNode(JsonReader::OBJECT_END);
     }
 
@@ -187,6 +189,23 @@ class JsonReaderTest extends \PHPUnit_Framework_TestCase
     {
         $this->assertEquals($depth, $this->reader->currentDepth);
         $this->assertEquals($type, $this->reader->currentStruct);
+    }
+
+    public function testMixedArrayContents()
+    {
+        $this->setStreamContents('{"one": [1, {"two": "three"}, 4]}');
+
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'one');
+        $this->assertReadNode(JsonReader::ARRAY_START);
+        $this->assertReadNode(JsonReader::INT, 1);
+        $this->assertReadNode(JsonReader::OBJECT_START);
+        $this->assertReadNode(JsonReader::OBJECT_KEY, 'two');
+        $this->assertReadNode(JsonReader::STRING, 'three');
+        $this->assertReadNode(JsonReader::OBJECT_END);
+        $this->assertReadNode(JsonReader::INT, 4);
+        $this->assertReadNode(JsonReader::ARRAY_END);
+        $this->assertReadNode(JsonReader::OBJECT_END);
     }
 
 }
