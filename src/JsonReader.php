@@ -26,9 +26,9 @@ class JsonReader implements JsonReaderInterface
     const ARR = 'array';
     const OBJECT = 'object';
 
-    const BOOLEAN = self::FALSE & self::TRUE;
-    const NUMBER = self::INT & self::FLOAT;
-    const VALUE = self::NULL & self::FALSE & self::TRUE & self::INT & self::FLOAT & self::STRING;
+    const BOOLEAN = self::FALSE | self::TRUE;
+    const NUMBER = self::INT | self::FLOAT;
+    const VALUE = self::NULL | self::BOOLEAN | self::NUMBER | self::STRING;
 
     /**
      * Current depth
@@ -132,6 +132,14 @@ class JsonReader implements JsonReaderInterface
     {
         $this->stream->resetPeek();
 
+        if ($this->structStack->isEmpty()) {
+            $this->currentDepth = 0;
+            $this->currentStruct = null;
+        } else {
+            $this->currentDepth = $this->structStack->count();
+            $this->currentStruct = $this->structStack->top();
+        }
+
         while (!$this->stream->isEmpty()) {
             $peek = $this->stream->peek();
 
@@ -190,9 +198,9 @@ class JsonReader implements JsonReaderInterface
                     $this->readNull();
                     return true;
 
+                case "\r":
                 case "\n":
                 case "\t":
-                case "\r":
                 case ' ':
                 case ':':
                 case ',':
@@ -201,7 +209,9 @@ class JsonReader implements JsonReaderInterface
 
                 default:
                     throw new RuntimeException(sprintf(
-                        'Unexpected %s',
+                        'Line %s, column %s: Unexpected %s',
+                        $this->stream->getPeekLineNumber(),
+                        $this->stream->getPeekColumnNumber(),
                         $peek
                     ));
             }
@@ -219,7 +229,9 @@ class JsonReader implements JsonReaderInterface
 
         if (strtolower($string) != 'true') {
             throw new RuntimeException(sprintf(
-                'Expected TRUE, got %s',
+                'Line %s, column %s: Expected true, got %s',
+                $this->stream->getLineNumber(),
+                $this->stream->getColumnNumber(),
                 $string
             ));
         }
@@ -236,7 +248,9 @@ class JsonReader implements JsonReaderInterface
 
         if (strtolower($string) != 'false') {
             throw new RuntimeException(sprintf(
-                'Expected FALSE, got %s',
+                'Line %s, column %s: Expected false, got %s',
+                $this->stream->getLineNumber(),
+                $this->stream->getColumnNumber(),
                 $string
             ));
         }
@@ -253,7 +267,9 @@ class JsonReader implements JsonReaderInterface
 
         if (strtolower($string) != 'null') {
             throw new RuntimeException(sprintf(
-                'Expected NULL, got %s',
+                'Line %s, column %s: Expected null, got %s',
+                $this->stream->getLineNumber(),
+                $this->stream->getColumnNumber(),
                 $string
             ));
         }
@@ -292,7 +308,7 @@ class JsonReader implements JsonReaderInterface
      */
     private function readNumber()
     {
-        $number = '';
+        $number = $this->stream->readCharsToPeek();
 
         while (!$this->stream->isEmpty()) {
             $peek = $this->stream->peek();
@@ -320,22 +336,34 @@ class JsonReader implements JsonReaderInterface
                     $this->readExponent($number);
                     return;
 
+                case ' ':
+                case "\r":
+                case "\n":
+                case "\t":
+                    $this->stream->readCharsToPeek();
+                    break;
+
                 case ',':
                 case '}':
                 case ']':
                     $this->setTokenData(self::INT, $number);
                     return;
-                    break;
 
                 default:
                     throw new RuntimeException(sprintf(
-                        'Unexpected %s',
+                        'Line %s, column %s: Unexpected %s',
+                        $this->stream->getPeekLineNumber(),
+                        $this->stream->getPeekColumnNumber(),
                         $peek
                     ));
             }
         }
 
-        throw new RuntimeException('Unexpected end of file, expected number');
+        throw new RuntimeException(sprintf(
+            'Line %s, column %s: Unexpected end of file, expected number',
+            $this->stream->getPeekLineNumber(),
+            $this->stream->getPeekColumnNumber()
+        ));
     }
 
     /**
@@ -365,6 +393,13 @@ class JsonReader implements JsonReaderInterface
                     $this->readExponent($number . $this->stream->readCharsToPeek());
                     return;
 
+                case ' ':
+                case "\n":
+                case "\r":
+                case "\t":
+                    $this->stream->readCharsToPeek();
+                    break;
+
                 case ',':
                 case ']':
                 case '}':
@@ -373,13 +408,19 @@ class JsonReader implements JsonReaderInterface
 
                 default:
                     throw new RuntimeException(sprintf(
-                        'Unexpected %s',
+                        'Line %s, column %s: Unexpected %s',
+                        $this->stream->getPeekLineNumber(),
+                        $this->stream->getPeekColumnNumber(),
                         $peek
                     ));
             }
         }
 
-        throw new RuntimeException('Unexpected end of file, expected fraction part');
+        throw new RuntimeException(sprintf(
+            'Unexpected end of file, expected fraction part',
+            $this->stream->getPeekLineNumber(),
+            $this->stream->getPeekColumnNumber()
+        ));
     }
 
     /**
@@ -404,6 +445,13 @@ class JsonReader implements JsonReaderInterface
                 case '+':
                 case '-':
                     $number .= $this->stream->readCharsToPeek();
+                    break;
+
+                case ' ':
+                case "\n":
+                case "\r":
+                case "\t":
+                    $this->stream->readCharsToPeek();
                     break;
 
                 case ',':
@@ -446,7 +494,9 @@ class JsonReader implements JsonReaderInterface
 
             default:
                 throw new RuntimeException(sprintf(
-                    'Unexpected %s, expected valid escape sequence',
+                    'Line %s, column %s: Unexpected %s, expected valid escape sequence',
+                    $this->stream->getLineNumber(),
+                    $this->stream->getColumnNumber(),
                     $char
                 ));
         }
@@ -481,7 +531,9 @@ class JsonReader implements JsonReaderInterface
 
                 default:
                     throw new RuntimeException(sprintf(
-                        'Unexpected %s, expected hexadecimal character',
+                        'Line %s, column %s: Unexpected %s, expected hexadecimal character',
+                        $this->stream->getLineNumber(),
+                        $this->stream->getColumnNumber(),
                         $char
                     ));
             }
@@ -506,7 +558,7 @@ class JsonReader implements JsonReaderInterface
     private function determineStringType()
     {
         while (!$this->stream->isPeekEmpty()) {
-            $char = $this->stream->peek(1);
+            $char = $this->stream->peek();
 
             switch ($char) {
                 case ',':
@@ -526,7 +578,9 @@ class JsonReader implements JsonReaderInterface
 
                 default:
                     throw new RuntimeException(sprintf(
-                        'Unexpected %s, expected : or ,',
+                        'Line %s, column %s: Unexpected %s, expected : or ,',
+                        $this->stream->getPeekLineNumber(),
+                        $this->stream->getPeekColumnNumber(),
                         $char
                     ));
             }
@@ -552,12 +606,6 @@ class JsonReader implements JsonReaderInterface
                 break;
         }
 
-        $this->currentStruct = $this->structStack
-            ->top();
-
-        $this->currentDepth = $this->structStack
-            ->count();
-
         $this->setTokenData($token);
     }
 
@@ -572,30 +620,26 @@ class JsonReader implements JsonReaderInterface
         switch ($token) {
             case self::ARRAY_END:
                 if ($topToken == self::OBJECT) {
-                    throw new RuntimeException('Expected ], got }');
+                    throw new RuntimeException(sprintf(
+                        'Line %s, column %s: Expected ], got }',
+                        $this->stream->getLineNumber(),
+                        $this->stream->getColumnNumber()
+                    ));
                 }
                 break;
 
             case self::OBJECT_END:
                 if ($topToken == self::ARR) {
-                    throw new RuntimeException('Expected }, got ]');
+                    throw new RuntimeException(sprintf(
+                        'Line %s, column %s: Expected }, got ]',
+                        $this->stream->getLineNumber(),
+                        $this->stream->getColumnNumber()
+                    ));
                 }
                 break;
         }
 
         $this->setTokenData($token);
-
-        if ($this->structStack->isEmpty()) {
-            $this->currentStruct = null;
-            $this->currentDepth = 0;
-            return;
-        }
-
-        $this->currentStruct = $this->structStack
-            ->top();
-
-        $this->currentDepth = $this->structStack
-            ->count();
     }
 
 }
