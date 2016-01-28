@@ -6,6 +6,7 @@
             "email": "justin.hendrickson@gmail.com"
         }
     ],
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Toxygene\\JsonReader\\": "src"
